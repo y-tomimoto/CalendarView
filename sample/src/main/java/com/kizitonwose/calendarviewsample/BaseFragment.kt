@@ -11,7 +11,7 @@ interface HasToolbar {
 }
 
 interface HasBackButton
-
+// これは自作クラスであり、Fragmentを継承しているみたい。
 abstract class BaseFragment : Fragment() {
 
     override fun onStart() {

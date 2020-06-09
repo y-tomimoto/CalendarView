@@ -37,56 +37,86 @@ import org.threeten.bp.YearMonth
 import org.threeten.bp.format.DateTimeFormatter
 import java.util.*
 
-private val Context.inputMethodManager
+private val Context.inputMethodManager // ソフトキーボードからアプリケーションに情報を受け渡すためのAPI
+    // このget()は謎。多分systemServie
     get() = this.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 
+// これはdata class。データを保持するためだけのもの。
 data class Event(val id: String, val text: String, val date: LocalDate)
 
-class Example3EventsAdapter(val onClick: (Event) -> Unit) :
+// このクラス自体が、RecyclerView.Adapterを継承していて、その引数が、Example3EventsViewHolder なのか。
+class Example3EventsAdapter(val onClick: (Event) -> Unit) : // Unit はvoidの意味。ここで渡したOnclickは、戻り値を必要としない。このOnclickはデータを受け取る
+
+    // これはAdapter。<> には内部クラスを渡している。
+    //  Example3EventsViewHolder　ViewHolderを元に拡張しているクラスになっている。これは間違いなさそう。ではこの（）はなんだ。多分コンストラクタになる。
+    // このAdapterは、ViewHolderを継承した新しいクラスなのだろうか
+
+    // これはViewの作成・表示されるViewとデータの結びつけを行う。
+    // ここで引数に渡しているViewHolderとはなんだ？
+    // あくまでこれは型引数であって、純粋な引数でないのか。
+    // Adapterは型引数に、ViewHolderを extendsしたクラスを要求している
     RecyclerView.Adapter<Example3EventsAdapter.Example3EventsViewHolder>() {
 
-    val events = mutableListOf<Event>()
+        val events = mutableListOf<Event>() // eventを格納するList。ここにイベントを打ち込む
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Example3EventsViewHolder {
-        return Example3EventsViewHolder(parent.inflate(R.layout.example_3_event_item_view))
-    }
+        // このViewGroupが、1つのレコードみたいなもんで、これを構成するパーツが、いくつかあって、それぞれにtypeがつく　
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Example3EventsViewHolder {
+            return Example3EventsViewHolder(parent.inflate(R.layout.example_3_event_item_view))
+        }
 
-    override fun onBindViewHolder(viewHolder: Example3EventsViewHolder, position: Int) {
-        viewHolder.bind(events[position])
-    }
+        // このViewHolderに、、、eventをセットしている
+        override fun onBindViewHolder(viewHolder: Example3EventsViewHolder, position: Int) {
+            viewHolder.bind(events[position]) // ここで表示位置を指定
+        }
 
-    override fun getItemCount(): Int = events.size
+        override fun getItemCount(): Int = events.size //配列の数を取得
 
-    inner class Example3EventsViewHolder(override val containerView: View) :
-        RecyclerView.ViewHolder(containerView), LayoutContainer {
+         // これもクラス。constructorとしてViewを受け取っていて、
+         // ここでViewへの参照を持っておく。これにより毎回Viewを参照する必要がなくなる
+        inner class Example3EventsViewHolder(override val containerView: View) :
+            // このViewHolderを継承しているとおもったら、2つ継承している？？
+            // このカンマはなんだ？？1つはcontainerView（引数）をコンストラクタとしているのがわかる。しかしもうひとつは？？コンストラクタがなにので、
+            RecyclerView.ViewHolder(containerView), LayoutContainer { // このLayoutXContainerでは、Viewのアクセスをキャッシュしてくれるinterface
+             //と思ったけどやっぱこれクラスでなく、関数だな。継承の文法で、メソッドとinterfaceが実装されている謎
+             // まぁクラスと言いはるからクラスとしてやるか。そして、これは複数のinterfaceを継承している形 : https://blog.y-yuki.net/entry/2019/05/20/100000
 
-        init {
-            itemView.setOnClickListener {
-                onClick(events[adapterPosition])
+            init { // ここはinitializer。インスタンスが生成されるときに実行される。
+                itemView.setOnClickListener {
+                    onClick(events[adapterPosition]) // => ここでonClickの引数には、eventが渡されている。
+                    // adapterPosition これはなんだ。多分アクションがあったときの位置
+                }
+            }
+
+             // これはイベントをわたして、テキストを取得するやつ
+            fun bind(event: Event) {
+                itemEventText.text = event.text
             }
         }
 
-        fun bind(event: Event) {
-            itemEventText.text = event.text
-        }
-    }
-
 }
+// これ確か継承だったよな
+// Flagmentについて調べて見るか。
+// このクラスが呼ばれて、最終的にFragmentを返しているみたい。
+// これ。BaseFragmentを継承している。そしてinterfaceも。
 
-class Example3Fragment : BaseFragment(), HasBackButton {
+class Example3Fragment : BaseFragment(), HasBackButton { // ここでFlagmentクラスと、HasBackButton　interfaceを継承している
 
     private val eventsAdapter = Example3EventsAdapter {
-        AlertDialog.Builder(requireContext())
-            .setMessage(R.string.example_3_dialog_delete_confirmation)
+        // これがイベント。タップされたらdeleteボタンをメッセージと表示する
+        AlertDialog.Builder(requireContext()) // このContextは一旦無視
+            .setMessage(R.string.example_3_dialog_delete_confirmation) //
             .setPositiveButton(R.string.delete) { _, _ ->
-                deleteEvent(it)
+                deleteEvent(it) // これは、表示したdeleteボタンのイベントやな。 it はなにか知らん。これはプラスになる。
+                // 多分ここに、イベントをタップした先のインフレータなどを作成する必要がある。
             }
             .setNegativeButton(R.string.close, null)
             .show()
     }
 
+    // これが右下のタップ。予定入れるときのダイアログです。
     private val inputDialog by lazy {
         val editText = AppCompatEditText(requireContext())
+        // ここで多分ポジションを設定している。これが変われば、画面上の位置が変わるはず
         val layout = FrameLayout(requireContext()).apply {
             // Setting the padding on the EditText only pads the input area
             // not the entire EditText so we wrap it in a FrameLayout.
@@ -94,7 +124,7 @@ class Example3Fragment : BaseFragment(), HasBackButton {
             setPadding(padding, padding, padding, padding)
             addView(editText, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         }
-        AlertDialog.Builder(requireContext())
+        AlertDialog.Builder(requireContext()) // これがダイアログになる。
             .setTitle(getString(R.string.example_3_input_dialog_title))
             .setView(layout)
             .setPositiveButton(R.string.save) { _, _ ->
@@ -117,60 +147,82 @@ class Example3Fragment : BaseFragment(), HasBackButton {
             }
     }
 
-    override val titleRes: Int = R.string.example_3_title
+    override val titleRes: Int = R.string.example_3_title // これは入り口に表示するやつか。
 
-    private var selectedDate: LocalDate? = null
-    private val today = LocalDate.now()
+    private var selectedDate: LocalDate? = null// これはなにかは知らん
+    private val today = LocalDate.now() //これは本日の参考にするはず。
 
+    // これをheaderに表示しているな。なるほど。
     private val titleSameYearFormatter = DateTimeFormatter.ofPattern("MMMM")
     private val titleFormatter = DateTimeFormatter.ofPattern("MMM yyyy")
     private val selectionFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
     private val events = mutableMapOf<LocalDate, List<Event>>()
 
+    // コンストラクタとしてLayoutInflaterクラスを実装している。
+    // container 内にLayoutInflaterで生成したpartを当てはめるよの意//これどこで読んでる？
+    // containerの値は、もともともっているのでは？？
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.example_3_fragment, container, false)
+        return inflater.inflate(R.layout.example_3_fragment, container, false) // このクラスが実行されたらレイアウトを返す
+        // ここで返しているのはあれやな、画面した半分のところ。このなかにリストが追加される、headerも動的に変わっているのね。
+        // ここが実際にinflateを返しているな。
     }
 
+    // レイアウトを返して、これが実行される。
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        super.onViewCreated(view, savedInstanceState) //これはお決まりみたいなもんだろう。
 
-        exThreeRv.layoutManager = LinearLayoutManager(requireContext(), RecyclerView.VERTICAL, false)
-        exThreeRv.adapter = eventsAdapter
-        exThreeRv.addItemDecoration(DividerItemDecoration(requireContext(), RecyclerView.VERTICAL))
 
-        val daysOfWeek = daysOfWeekFromLocale()
-        val currentMonth = YearMonth.now()
-        exThreeCalendar.setup(currentMonth.minusMonths(10), currentMonth.plusMonths(10), daysOfWeek.first())
-        exThreeCalendar.scrollToMonth(currentMonth)
+        // 下半分
+        // 作成したlayout内のxmlには動的にアクセスできるとかなんだろうな。
+        exThreeRv.layoutManager = LinearLayoutManager(requireContext(), RecyclerView.VERTICAL, false) // これが横スワイプとか縦スワイプを管理するやつ。
+        exThreeRv.adapter = eventsAdapter // ここには、追加したイベント自体が受け渡される。
+        exThreeRv.addItemDecoration(DividerItemDecoration(requireContext(), RecyclerView.VERTICAL)) // これで罫線を通過しているのね。
 
+        // 上半分
+        val daysOfWeek = daysOfWeekFromLocale() // これは月から日までの日付を入れるところ
+        val currentMonth = YearMonth.now() // いま何月か
+        // ここがCalendar部分のレイアウトか。
+        // 前後10ヶ月を作成している
+        exThreeCalendar.setup(currentMonth.minusMonths(10), currentMonth.plusMonths(10), daysOfWeek.first()) // 多分これはCalendarの型を生成している。
+        exThreeCalendar.scrollToMonth(currentMonth) // 今月までスクロールしている
+
+        // これは何をしてんねん
         if (savedInstanceState == null) {
             exThreeCalendar.post {
                 // Show today's events initially.
-                selectDate(today)
+                selectDate(today)// これは初期イベントを設定している様子。
+                // 完成度をどのくらいにするかは考えものだな。
             }
         }
 
+        // ViewContainerを継承している
         class DayViewContainer(view: View) : ViewContainer(view) {
             lateinit var day: CalendarDay // Will be set when this container is bound.
             val textView = view.exThreeDayText
-            val dotView = view.exThreeDotView
+            val dotView = view.exThreeDotView //　あ、これはdayを生成しているみたいだな、1ずつ並ぶやつ
 
-            init {
-                view.setOnClickListener {
-                    if (day.owner == DayOwner.THIS_MONTH) {
+            init { // ここではviewをタップしたときなにをしている？
+                // day.ownerが、、、
+                    view.setOnClickListener {
+                    if (day.owner == DayOwner.THIS_MONTH) { //day.viewコンテナには、dayとmanceがあって、その組み合わせを確認しているとか。
                         selectDate(day.date)
                     }
                 }
             }
         }
-        exThreeCalendar.dayBinder = object : DayBinder<DayViewContainer> {
+
+        // このexThreeCalendarは、りさいくらviewを継承しているCalenderViewを元に作成されている。
+        // これはdayviewCalendarに
+        // 拡張関数
+        exThreeCalendar.dayBinder = object : DayBinder<DayViewContainer> { // これは変数になる。ここに打ち込んだら、CalendarViewで処理をする感じ。
+            //  てか、処理をboot strapから見ていったほうが早そうだな。
             override fun create(view: View) = DayViewContainer(view)
             override fun bind(container: DayViewContainer, day: CalendarDay) {
-                container.day = day
-                val textView = container.textView
-                val dotView = container.dotView
+                container.day = day // これはbindを利用している、イベントテキストをわりふっているのか　？
+                val textView = container.textView // これは？
+                val dotView = container.dotView // これはdotの有無を割り振っている様子だな、
 
-                textView.text = day.date.dayOfMonth.toString()
+                textView.text = day.date.dayOfMonth.toString() // これは、、、、、
 
                 if (day.owner == DayOwner.THIS_MONTH) {
                     textView.makeVisible()
@@ -198,6 +250,8 @@ class Example3Fragment : BaseFragment(), HasBackButton {
             }
         }
 
+        // これは無名関数
+        // スクロールした際に実行されるやつ
         exThreeCalendar.monthScrollListener = {
             requireActivity().homeToolbar.title = if (it.year == today.year) {
                 titleSameYearFormatter.format(it.yearMonth)
@@ -207,12 +261,13 @@ class Example3Fragment : BaseFragment(), HasBackButton {
 
             // Select the first day of the month when
             // we scroll to a new month.
-            selectDate(it.yearMonth.atDay(1))
+            selectDate(it.yearMonth.atDay(1)) // 最初を1に設定している
         }
 
         class MonthViewContainer(view: View) : ViewContainer(view) {
             val legendLayout = view.legendLayout
         }
+
         exThreeCalendar.monthHeaderBinder = object : MonthHeaderFooterBinder<MonthViewContainer> {
             override fun create(view: View) = MonthViewContainer(view)
             override fun bind(container: MonthViewContainer, month: CalendarMonth) {
@@ -231,6 +286,14 @@ class Example3Fragment : BaseFragment(), HasBackButton {
             inputDialog.show()
         }
     }
+
+    // ここまでが実行される
+
+
+    // ここから下は雑多な関数群。
+
+    //==============================================================================================
+    //==============================================================================================
 
     private fun selectDate(date: LocalDate) {
         if (selectedDate != date) {

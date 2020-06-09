@@ -12,9 +12,12 @@ import kotlinx.android.synthetic.main.home_options_item_view.*
 
 data class ExampleItem(@StringRes val titleRes: Int, @StringRes val subtitleRes: Int, val createView: () -> BaseFragment)
 
+// これもただのリサイクらviewだわ
+// これはコンストラクタ
 class HomeOptionsAdapter(val onClick: (ExampleItem) -> Unit) :
-    RecyclerView.Adapter<HomeOptionsAdapter.HomeOptionsViewHolder>() {
+    RecyclerView.Adapter<HomeOptionsAdapter.HomeOptionsViewHolder>() { // これはクラス内のクラスを継承している。そして、ここでは、ジェネリクスとして、viewHolderを渡している。
 
+    // これはただのデータクラス。コンストラクタに関数を引き渡している。これはBaaeFragmentをreturnする関数がすべて
     val examples = listOf(
         ExampleItem(R.string.example_1_title, R.string.example_1_subtitle) { Example1Fragment() },
         ExampleItem(R.string.example_2_title, R.string.example_2_subtitle) { Example2Fragment() },
@@ -25,7 +28,9 @@ class HomeOptionsAdapter(val onClick: (ExampleItem) -> Unit) :
         ExampleItem(R.string.example_7_title, R.string.example_7_subtitle) { Example7Fragment() }
     )
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HomeOptionsViewHolder {
+    // この3つはobstractになっているんだろう。
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HomeOptionsViewHolder { // 戻り値の型がHomeOptionsViewHolderということ
         return HomeOptionsViewHolder(
             LayoutInflater.from(parent.context).inflate(R.layout.home_options_item_view, parent, false)
         )
@@ -37,12 +42,13 @@ class HomeOptionsAdapter(val onClick: (ExampleItem) -> Unit) :
 
     override fun getItemCount(): Int = examples.size
 
+    // ここでクラスを生成している。
     inner class HomeOptionsViewHolder(override val containerView: View) :
         RecyclerView.ViewHolder(containerView), LayoutContainer {
 
         init {
             itemView.setOnClickListener {
-                onClick(examples[adapterPosition])
+                onClick(examples[adapterPosition])// ここにクリックされた時に挙動を書いてある。クリックしたらこの関数を実行するみたいだな、
             }
         }
 
